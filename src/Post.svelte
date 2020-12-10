@@ -2,40 +2,35 @@
     import Icons from '../public/images/icons';
     import App from './App.svelte';
     import Icon from './Icon.svelte';
-    export let user;    /* 
-    User {
-        username:String,
-        firstName: String
-        lastName: String,
-        profilePicture:String,
-        posts:[Int],
-    }
-    */
-    export let source;  // String
-    export let caption = "Look how much fun we are having without you!";
-    export let likes = 0; // [User]
-    export let comments = [];// [Comment]
-    export let isAd = false;
+    import { onMount } from 'svelte';
 
-    let heartFill = "none";
+    export let username; 
+    export let imgSource;
+    export let caption = "";
+    export let likes = 0; 
+    export let comments = [];
+    export let isAd = false;
+    export let isLiked = false;
+    export let realitySource = "";
+    export let realityCaption = "";
+    export let style = "";
+
+    const imgPrefix = "./images/";
+    const fixImgPath = src => imgPrefix + src;
+    let trueSource = fixImgPath(imgSource);
+    let trueRealitySource = fixImgPath(realitySource);
+
+    let oldCaption = caption;
 
     let crack = new Image();
     crack.src = "../images/crack1.png";
 
-    let eye = new Image();
-    eye.src = "../images/eyeball.png";
-    let face = new Image();
-    face.src = "../images/face.png";
-    let knot = new Image();
-    knot.src = "../images/knot.png";
-
     function toggleLike() {
-        heartFill = heartFill === "none" ? "red" : "none";
-        console.log(heartFill);
+        likes = parseInt(likes) + 2 * (!isLiked - .5);
+        isLiked = !isLiked;
     };
 
     function getMousePos(e) {            
-        let canvas = e.target;
         let rect = canvas.getBoundingClientRect(); 
         let x = e.clientX - rect.left; 
         let y = e.clientY - rect.top; 
@@ -43,7 +38,6 @@
     }
 
     function crackScreen(e) {
-        let canvas = e.target;
         let [x, y] = getMousePos(e);
         const width = 300;
         const height = 150;
@@ -53,34 +47,48 @@
 
     }
 
-    function distance(x1, y1, x2, y2) {
-        return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    // bindings
+    let canvas;
+    let post;
+
+    const setCanvasBG = url => {
+        canvas.style.backgroundImage = `url('${url}')`;
     }
 
-    function eyeMove(e) {
-        let canvas = e.target;
-        let [x, y] = getMousePos(e);
-        let distFromCenter = distance(x, y, canvas.width/2, canvas.height/2);
-        const width = 400;
-        const height = 300;
-        let context = canvas.getContext("2d");
-        context.drawImage(eye, x - width / 2, y - height / 2, width, height);
-        context.drawImage(face, 0, 0, canvas.width, canvas.height);
-        context.drawImage(knot, 0, 0, canvas.width, canvas.height);
-    }
+    const callback = entries => {
+        if (entries[0].isIntersecting && realitySource != "") {
+            setCanvasBG(trueRealitySource);
+            if (realityCaption != "") {
+                caption = realityCaption;
+            }
+            setTimeout(() => {
+                setCanvasBG(trueSource);
+                caption = oldCaption;
+            }, 300);
+        }
+    };
+
+    const options = {
+        threshold: 1
+    };
+
+    onMount(() => {
+        const observer = new IntersectionObserver(callback, options);
+        observer.observe(post);
+    })
 
 </script>
 
-<article>
+<article bind:this={post} style={style}>
     <header>
         <div class="imgCont profilePic">
-            <img src={user.profilePicture}/>
         </div>
-        <a href={user.link}><b>{user.username}</b></a>
+        <b>{username}</b>
         <div class="spacer"></div>
         <button>...</button>
     </header>
-    <canvas style="background-image:url({source})"
+    <canvas bind:this={canvas}
+            style="background-image:url({trueSource})"
             width=400 
             height=300
             on:click={crackScreen}
@@ -88,7 +96,7 @@
             Your browser does not support canvas elements.
     </canvas>
     <footer>
-        <Icon {...Icons.heart}/>
+        <Icon onclick={toggleLike} {...Icons.heart}/>
         <Icon {...Icons.comment}/>
         <div class="spacer"></div>
         <Icon {...Icons.bookmark}/>
@@ -101,13 +109,22 @@
                 {likes} {likes === 1 ? "like" : "likes"}
             {/if}
         </b>
-        <p class="username">
-            <b>{user.username}</b>
+        <p class="username caption">
+            <b>{username}</b>
             {caption}
         </p>
         <div class="comments preview">
+            {#if comments.length > 0}
+                {#each comments as comment}
+                <p class="username">
+                    <b>{comment.username}</b>
+                    {comment.text}
+                </p>
+                {/each}
+            {:else}
+                <p class="hint">Be the first to comment...</p>
+            {/if}
         </div>
-        <button on:click={toggleLike} class="blue center">Load more comments...</button>
     </div>
 </article>
 
@@ -128,6 +145,7 @@
         flex-direction: column;
         box-shadow: 0px 5px 15px rgba(0,0,30,.3);
         padding-bottom: 20px;
+        background-color: #fff;
     }
 
     article header {
@@ -143,6 +161,7 @@
         margin: 10px;
         border-radius: 50%;
         border: 2px solid #ee50cc;
+        background-color: #333;
     }
 
     b {
@@ -150,6 +169,8 @@
     }
 
     .caption {
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ccc;
     }
 
     button {
@@ -189,6 +210,16 @@
 
     .info {
         margin: 0 17px;
+    }
+
+    .comments p {
+        margin-bottom: 0;
+        margin-top: 0;
+    }
+
+    .hint {
+        font-weight: 300;
+        color: #aaa;
     }
 
 </style>
